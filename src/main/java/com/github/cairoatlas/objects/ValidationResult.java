@@ -1,12 +1,19 @@
 package com.github.cairoatlas.objects;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.github.cairoatlas.objects.response.DialogActionMessage;
 
 public class ValidationResult {
     private boolean isValid;
     private String violatedSlot;
-    private Map<String, String> message = new HashMap<>();
+	private DialogActionMessage dialogActionMessage;
+
+	public ValidationResult(final boolean isValid, final String voilatedSlot, final String contentMessage) {
+		this.isValid = isValid;
+		this.violatedSlot = getViolatedSlot();
+		DialogActionMessage dialogActionMessage = new DialogActionMessage();
+		dialogActionMessage.setContent(contentMessage);
+		this.dialogActionMessage = dialogActionMessage;
+	}
 
     public boolean isValid() {
         return isValid;
@@ -24,11 +31,11 @@ public class ValidationResult {
         this.violatedSlot = violatedSlot;
     }
 
-    public Map<String, String> getMessage() {
-        return message;
+	public DialogActionMessage getDialogActionMessage() {
+		return dialogActionMessage;
     }
 
-    public void setMessage(Map<String, String> message) {
-        this.message = message;
+	public void setDialogActionMessage(DialogActionMessage dialogActionMessage) {
+		this.dialogActionMessage = dialogActionMessage;
     }
 }

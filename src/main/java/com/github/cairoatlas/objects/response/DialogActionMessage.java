@@ -1,7 +1,7 @@
 package com.github.cairoatlas.objects.response;
 
 public class DialogActionMessage {
-    private String contentType;
+	private String contentType = "PlainText";
     private String content;
 
     public String getContentType() {

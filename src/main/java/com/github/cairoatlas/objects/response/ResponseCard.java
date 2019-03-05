@@ -7,6 +7,11 @@ public class ResponseCard {
     private String contentType;
     private List<GenericAttachment> genericAttachments;
 
+	public ResponseCard(final Integer version, final String contentType) {
+		this.version = version;
+		this.contentType = contentType;
+	}
+
     public Integer getVersion() {
         return version;
     }

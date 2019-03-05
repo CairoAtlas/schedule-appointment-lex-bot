@@ -10,6 +10,11 @@ public class GenericAttachment {
     private String attachmentLinkUrl;
     private List<GenericAttachmentButton> buttons;
 
+	public GenericAttachment(final String title, final String subtitle) {
+		this.title = title;
+		this.subTitle = subtitle;
+	}
+
     public String getTitle() {
         return title;
     }

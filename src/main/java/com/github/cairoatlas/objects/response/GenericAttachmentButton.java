@@ -4,6 +4,11 @@ public class GenericAttachmentButton {
     private String text;
     private String value;
 
+	public GenericAttachmentButton(final String text, final String value) {
+		this.text = text;
+		this.value = value;
+	}
+
     public String getText() {
         return text;
     }
