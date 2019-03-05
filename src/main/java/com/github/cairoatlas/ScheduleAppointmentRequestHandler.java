@@ -147,8 +147,7 @@ public class ScheduleAppointmentRequestHandler {
 	}
 
 	private LexResponse close(
-			final Map<String, String> outputSessionAttributes,
-			final DialogActionMessage message) {
+			final Map<String, String> outputSessionAttributes, final DialogActionMessage message) {
 		DialogAction dialogAction = new DialogAction();
 		dialogAction.setType("Close");
 		dialogAction.setFulfillmentState("Fulfilled");
@@ -366,8 +365,11 @@ public class ScheduleAppointmentRequestHandler {
 						false,
 						"Date",
 						"Appointments must be scheduled a day in advance.  Can you try a different date?");
-			} else if ("SUNDAY".equals(parseDate(date).getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH))
-					|| "SATURDAY".equals(parseDate(date).getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH))) {
+			} else if ("SUNDAY"
+					.equals(parseDate(date).getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH))
+					|| "SATURDAY"
+					.equals(
+							parseDate(date).getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH))) {
 				return new ValidationResult(
 						false, "Date", "Our office is not open on the weekends, can you provide a work day?");
 			}
@@ -488,7 +490,7 @@ public class ScheduleAppointmentRequestHandler {
 		return null;
 	}
 
-	private LexResponse make_appointment(LexRequest intentRequest) {
+	private LexResponse makeAppointment(LexRequest intentRequest) {
 		String appointmentType = intentRequest.getCurrentIntent().getSlots().get("AppointmentType");
 		String date = intentRequest.getCurrentIntent().getSlots().get("Date");
 		String appointmentTime = intentRequest.getCurrentIntent().getSlots().get("Time");
@@ -645,9 +647,10 @@ public class ScheduleAppointmentRequestHandler {
 		} else {
 			// This is not treated as an error as this code sample supports functionality either as
 			// fulfillment or dialog code hook.
-			// logger.debug('Availabilities for {} were null at fulfillment time.  '
-			// 'This should have been initialized if this function was configured as the dialog code
-			// hook'.format(date))
+			LOG.debug(
+					"Availabilities for {} were null at fulfillment time. " +
+							"This should have been initialized if this function was configured as the dialog code hook",
+					date);
 		}
 		DialogActionMessage dialogActionMessage = new DialogActionMessage();
 		dialogActionMessage.setContent(
@@ -662,17 +665,18 @@ public class ScheduleAppointmentRequestHandler {
 		// TODO: logger.debug('dispatch userId={}, intentName={}'.format(intent_request['userId'],
 		// intent_request['currentIntent']['name']))
 		String intentName = intentRequest.getCurrentIntent().getName();
+		LOG.debug("dispatch userId={}, intentName={}", intentRequest.getUserId(), intentName);
 
 		if (intentName.equals("MakeAppointment")) {
-			return make_appointment(intentRequest);
+			return makeAppointment(intentRequest);
 		}
 
 		throw new IllegalStateException("Intent with name " + intentName + " not supported");
 	}
 
 	public LexResponse handleRequest(
-			final LexRequest request, Map<String, String> sessionAttributes) {
-		return dispatch(request);
+			final LexRequest requestEvent, Map<String, String> sessionAttributes) {
+		LOG.debug("event.bot.name={}", requestEvent.getBot().getName());
+		return dispatch(requestEvent);
 	}
-
 }
