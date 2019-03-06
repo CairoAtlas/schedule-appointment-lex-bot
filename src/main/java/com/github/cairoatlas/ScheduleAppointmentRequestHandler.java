@@ -1,5 +1,7 @@
 package com.github.cairoatlas;
 
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.github.cairoatlas.objects.ValidationResult;
 import com.github.cairoatlas.objects.request.LexRequest;
 import com.github.cairoatlas.objects.response.*;
@@ -17,7 +19,7 @@ import java.time.format.TextStyle;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class ScheduleAppointmentRequestHandler {
+public class ScheduleAppointmentRequestHandler implements RequestHandler<LexRequest, LexResponse> {
 
 	private static final ZoneId EASTERN_TIME_ZONE = ZoneId.of("America/New_York");
 
@@ -40,6 +42,8 @@ public class ScheduleAppointmentRequestHandler {
 					"M d, yyyy",
 					"M d, yy",
 					"yyyy-MM-dd",
+					"yyyy-M-dd",
+					"yyyy-M-d",
 					"MM/dd/yyyy",
 					"MM/dd/yy",
 					"MM/d/yyyy",
@@ -67,19 +71,19 @@ public class ScheduleAppointmentRequestHandler {
 		APPOINTMENT_DURATION = Collections.unmodifiableMap(duration);
 	}
 
-	private static final Map<String, List<String>> DAY_STRINGS;
-
 	private static final Gson GSON = new Gson();
+
+	private static final Map<String, List<String>> DAY_STRINGS;
 
 	static {
 		Map<String, List<String>> days = new HashMap<>();
-		days.put("MONDAY", Arrays.asList("Mon", "Monday", "0"));
-		days.put("TUESDAY", Arrays.asList("Tue", "Tuesday", "1"));
-		days.put("WEDNESDAY", Arrays.asList("Wed", "Wednesday", "2"));
-		days.put("THURSDAY", Arrays.asList("Thu", "Thursday", "3"));
-		days.put("FRIDAY", Arrays.asList("Fri", "Friday", "4"));
-		days.put("SATURDAY", Arrays.asList("Sat", "Saturday", "5"));
-		days.put("SUNDAY", Arrays.asList("Sun", "Sunday", "6"));
+		days.put("Monday", Arrays.asList("Mon", "Monday", "0"));
+		days.put("Tuesday", Arrays.asList("Tue", "Tuesday", "1"));
+		days.put("Wednesday", Arrays.asList("Wed", "Wednesday", "2"));
+		days.put("Thursday", Arrays.asList("Thu", "Thursday", "3"));
+		days.put("Friday", Arrays.asList("Fri", "Friday", "4"));
+		days.put("Saturday", Arrays.asList("Sat", "Saturday", "5"));
+		days.put("Sunday", Arrays.asList("Sun", "Sunday", "6"));
 		DAY_STRINGS = Collections.unmodifiableMap(days);
 	}
 
@@ -163,7 +167,7 @@ public class ScheduleAppointmentRequestHandler {
 	private LexResponse delegate(
 			final Map<String, String> outputSessionAttributes, final Map<String, String> slots) {
 		DialogAction dialogAction = new DialogAction();
-		dialogAction.setType("Close");
+		dialogAction.setType("Delegate");
 		dialogAction.setSlots(slots);
 
 		LexResponse lexResponse = new LexResponse();
@@ -290,6 +294,9 @@ public class ScheduleAppointmentRequestHandler {
 	}
 
 	private Integer getDuration(final String appointmentType) {
+		if (appointmentType == null || appointmentType.isEmpty()) {
+			return null;
+		}
 		return APPOINTMENT_DURATION.get(appointmentType.toLowerCase());
 	}
 
@@ -315,7 +322,7 @@ public class ScheduleAppointmentRequestHandler {
 	private ValidationResult validateBookAppointment(
 			final String appointmentType, final String date, final String appointmentTime) {
 		Integer duration = getDuration(appointmentType);
-		if (appointmentType != null && !appointmentType.isEmpty() && duration != null) {
+		if (appointmentType != null && !appointmentType.isEmpty() && duration == null) {
 			return new ValidationResult(
 					false,
 					"AppointmentType",
@@ -416,23 +423,26 @@ public class ScheduleAppointmentRequestHandler {
 			final String appointmentType,
 			final String date,
 			final Map<String, List<String>> bookingMap) {
-		if (slot.equals("AppointmentType")) {
+		if ("AppointmentType".equals(slot)) {
 			return Arrays.asList(
 					new GenericAttachmentButton("cleaning (30 min)", "cleaning"),
 					new GenericAttachmentButton("root canal (60 min)", "root canal"),
 					new GenericAttachmentButton("whitening (30 min)", "whitening"));
-		} else if (slot.equals("Date")) {
+		} else if ("Date".equals(slot)) {
 			List<GenericAttachmentButton> options = new ArrayList<>();
 			LocalDate potentialDate = LocalDate.now(EASTERN_TIME_ZONE);
 			while (options.size() < 5) {
 				potentialDate = potentialDate.plusDays(1);
 				if (!"SUNDAY".equals(potentialDate.getDayOfWeek())
 						&& !"SATURDAY".equals(potentialDate.getDayOfWeek())) {
+					LOG.info("potential day of week:");
+					LOG.info(potentialDate.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH));
 					options.add(
 							new GenericAttachmentButton(
 									potentialDate.getMonthValue()
 											+ "-"
 											+ potentialDate.getDayOfMonth()
+											+ " "
 											+ DAY_STRINGS
 											.get(
 													potentialDate
@@ -440,26 +450,13 @@ public class ScheduleAppointmentRequestHandler {
 															.getDisplayName(TextStyle.FULL, Locale.ENGLISH))
 											.get(0)
 											+ " ("
-											+ DAY_STRINGS
-											.get(
-													potentialDate
-															.getDayOfWeek()
-															.getDisplayName(TextStyle.FULL, Locale.ENGLISH))
-											.get(1)
+											+ potentialDate.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH)
 											+ ")",
-									DAY_STRINGS
-											.get(
-													potentialDate
-															.getDayOfWeek()
-															.getDisplayName(TextStyle.FULL, Locale.ENGLISH))
-											.get(0)
-											+ ", "
-											+ MONTH_STRINGS.get(
-											potentialDate.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH))
-											+ " "
-											+ potentialDate.getDayOfMonth()
-											+ ", "
-											+ potentialDate.getYear()));
+									potentialDate.getYear()
+											+ "-"
+											+ potentialDate.getMonthValue()
+											+ "-"
+											+ potentialDate.getDayOfMonth()));
 				}
 			}
 			return options;
@@ -501,8 +498,20 @@ public class ScheduleAppointmentRequestHandler {
 		}.getType();
 		Map<String, List<String>> bookingMap =
 				GSON.fromJson(outputSessionAttributes.get("bookingMap"), bookingMapType);
+		if (bookingMap == null) {
+			bookingMap = new HashMap<>();
+		}
 
 		if ("DialogCodeHook".equals(source)) {
+			if ("Confirmed".equals(intentRequest.getCurrentIntent().getConfirmationStatus())) {
+				DialogActionMessage dialogActionMessage = new DialogActionMessage();
+				dialogActionMessage.setContent(
+						"Okay, I have booked your appointment. We will see you at "
+								+ buildTimeOutputString(appointmentTime)
+								+ " on "
+								+ date);
+				return close(outputSessionAttributes, dialogActionMessage);
+			}
 			Map<String, String> slots = intentRequest.getCurrentIntent().getSlots();
 			ValidationResult validationResult =
 					validateBookAppointment(appointmentType, date, appointmentTime);
@@ -648,8 +657,8 @@ public class ScheduleAppointmentRequestHandler {
 			// This is not treated as an error as this code sample supports functionality either as
 			// fulfillment or dialog code hook.
 			LOG.debug(
-					"Availabilities for {} were null at fulfillment time. " +
-							"This should have been initialized if this function was configured as the dialog code hook",
+					"Availabilities for {} were null at fulfillment time. "
+							+ "This should have been initialized if this function was configured as the dialog code hook",
 					date);
 		}
 		DialogActionMessage dialogActionMessage = new DialogActionMessage();
@@ -674,9 +683,12 @@ public class ScheduleAppointmentRequestHandler {
 		throw new IllegalStateException("Intent with name " + intentName + " not supported");
 	}
 
-	public LexResponse handleRequest(
-			final LexRequest requestEvent, Map<String, String> sessionAttributes) {
+	@Override
+	public LexResponse handleRequest(final LexRequest requestEvent, Context context) {
+		LOG.info(GSON.toJson(requestEvent));
 		LOG.debug("event.bot.name={}", requestEvent.getBot().getName());
-		return dispatch(requestEvent);
+		LexResponse response = dispatch(requestEvent);
+		LOG.info(GSON.toJson(response));
+		return response;
 	}
 }
