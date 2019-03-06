@@ -502,7 +502,7 @@ public class ScheduleAppointmentRequestHandler {
 		Map<String, List<String>> bookingMap =
 				GSON.fromJson(outputSessionAttributes.get("bookingMap"), bookingMapType);
 
-		if (source.equals("DialogCodeHook")) {
+		if ("DialogCodeHook".equals(source)) {
 			Map<String, String> slots = intentRequest.getCurrentIntent().getSlots();
 			ValidationResult validationResult =
 					validateBookAppointment(appointmentType, date, appointmentTime);
