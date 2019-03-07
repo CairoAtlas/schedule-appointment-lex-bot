@@ -493,13 +493,20 @@ public class ScheduleAppointmentRequestHandler implements RequestHandler<LexRequ
 		String appointmentTime = intentRequest.getCurrentIntent().getSlots().get("Time");
 		String source = intentRequest.getInvocationSource();
 		Map<String, String> outputSessionAttributes = intentRequest.getSessionAttributes();
-		// TODO: make sure this is built properly
-		Type bookingMapType = new TypeToken<Map<String, List<String>>>() {
-		}.getType();
-		Map<String, List<String>> bookingMap =
-				GSON.fromJson(outputSessionAttributes.get("bookingMap"), bookingMapType);
-		if (bookingMap == null) {
+		String bookingMapStringValue;
+		if (outputSessionAttributes == null) {
+			outputSessionAttributes = new HashMap<>();
+			bookingMapStringValue = null;
+		} else {
+			bookingMapStringValue = outputSessionAttributes.get("bookingMap");
+		}
+		Map<String, List<String>> bookingMap;
+		if (bookingMapStringValue == null) {
 			bookingMap = new HashMap<>();
+		} else {
+			Type bookingMapType = new TypeToken<Map<String, List<String>>>() {
+			}.getType();
+			bookingMap = GSON.fromJson(outputSessionAttributes.get("bookingMap"), bookingMapType);
 		}
 
 		if ("DialogCodeHook".equals(source)) {
